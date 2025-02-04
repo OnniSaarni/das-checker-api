@@ -1,0 +1,6 @@
+services:
+  das-checker-api:
+    image: ghcr.io/onnisaarni/das-checker-api:latest
+    environment:
+      - AUTH_TOKEN=AUTHTOKENHERE
+    restart: unless-stopped
