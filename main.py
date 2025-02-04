@@ -102,4 +102,4 @@ if __name__ == '__main__':
     cleanup_thread = threading.Thread(target=cleanup_old_entries, daemon=True)
     cleanup_thread.start()
     
-    serve(app, host="0.0.0.0", port=8080)
+    serve(app, host="0.0.0.0", port=5000)
