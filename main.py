@@ -5,6 +5,7 @@ import threading
 from dotenv import load_dotenv
 import os
 import xml.etree.ElementTree as ET
+from waitress import serve
 
 load_dotenv()
 authToken = os.getenv('AUTH_TOKEN')
@@ -100,4 +101,5 @@ def cleanup_old_entries():
 if __name__ == '__main__':
     cleanup_thread = threading.Thread(target=cleanup_old_entries, daemon=True)
     cleanup_thread.start()
-    app.run()
+    
+    serve(app, host="0.0.0.0", port=8080)
