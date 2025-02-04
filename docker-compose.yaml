@@ -4,3 +4,5 @@ services:
     environment:
       - AUTH_TOKEN=AUTHTOKENHERE
     restart: unless-stopped
+    ports:
+      - "443:5000"
