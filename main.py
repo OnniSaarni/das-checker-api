@@ -12,7 +12,7 @@ load_dotenv()
 allowedSites = os.getenv('ALLOWED_SITES').split(',')
 
 app = Flask(__name__)
-CORS(app, origins=allowedSites, headers=['Content-Type'])
+CORS(app, origins=[allowedSites], headers=['Content-Type'])
 
 user_last_request_time = {} # Dictionary to store the last request time for each user
 cleanup_interval = 60  # Interval in seconds to run the cleanup
@@ -88,7 +88,6 @@ def cleanup_old_entries():
     global user_last_request_time
 
     while True:
-        print(user_last_request_time)
         current_time = time.time()
         keys_to_delete = [key for key, last_time in user_last_request_time.items() if current_time - last_time > entry_lifetime]
         for key in keys_to_delete:
