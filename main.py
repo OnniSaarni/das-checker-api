@@ -6,11 +6,13 @@ from dotenv import load_dotenv
 import os
 import xml.etree.ElementTree as ET
 from waitress import serve
+from flask_cors import CORS
 
 load_dotenv()
 authToken = os.getenv('AUTH_TOKEN')
 
 app = Flask(__name__)
+CORS(app, origins=[authToken], headers=['Content-Type'])
 
 user_last_request_time = {} # Dictionary to store the last request time for each user
 cleanup_interval = 60  # Interval in seconds to run the cleanup
