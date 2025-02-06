@@ -12,7 +12,7 @@ load_dotenv()
 allowedSites = os.getenv('ALLOWED_SITES').split(',')
 
 app = Flask(__name__)
-CORS(app, origins=[allowedSites], headers=['Content-Type'])
+CORS(app, origins=allowedSites, headers=['Content-Type'])
 
 user_last_request_time = {} # Dictionary to store the last request time for each user
 cleanup_interval = 60  # Interval in seconds to run the cleanup
