@@ -35,7 +35,6 @@ def query_domain_availability(domain):
             response, _ = sock.recvfrom(4096)
             return(parse_status_from_xml(response.decode()))
     except Exception as e:
-        print(f"Error querying domain: {e}")
         return None
 
 def parse_status_from_xml(xml_string):
@@ -44,14 +43,14 @@ def parse_status_from_xml(xml_string):
         status_element = root.find('.//status')
         if status_element is not None:
             if status_element.find('available') is not None:
-                return "Domain is available."
+                return "available"
             elif status_element.find('active') is not None:
-                return "Domain is taken."
+                return "taken"
             elif status_element.find('invalid') is not None:
-                return "Invalid domain query."
-        return "Unknown domain status."
+                return "invalid-query"
+        return "unknown-domain-status"
     except ET.ParseError:
-        return "Failed to parse XML."
+        return "failed"
 
 @app.route('/')
 def index():
@@ -69,19 +68,19 @@ def checkDomain():
     last_request_time = user_last_request_time.get(user_key, 0)
 
     if current_time - last_request_time < 2:
-        return jsonify({"error": "Cooldown period. Please wait before making another request."}), 429
+        return jsonify({"status": "cooldown"}), 429
 
     user_last_request_time[user_key] = current_time
 
     domain = request.args.get('domain')
     if not domain:
-        return jsonify({"error": "No domain provided"}), 400
+        return jsonify({"status": "invalid-query"}), 400
 
     result = query_domain_availability(domain)
     if result:
         return jsonify({"status": result}), 200
     else:
-        return jsonify({"error": "Failed to check domain availability"}), 500
+        return jsonify({"status": "failed"}), 500
 
 
 def cleanup_old_entries():
