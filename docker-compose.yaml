@@ -2,7 +2,6 @@ services:
   das-checker-api:
     image: ghcr.io/onnisaarni/das-checker-api:latest
     environment:
-      - AUTH_TOKEN=AUTHTOKENHERE
       - ALLOWED_SITES=http://site.com,https://site.com
     restart: unless-stopped
     ports:

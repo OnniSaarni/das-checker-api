@@ -9,7 +9,6 @@ from waitress import serve
 from flask_cors import CORS
 
 load_dotenv()
-authToken = os.getenv('AUTH_TOKEN')
 allowedSites = os.getenv('ALLOWED_SITES').split(',')
 
 app = Flask(__name__)
@@ -73,11 +72,6 @@ def checkDomain():
         return jsonify({"error": "Cooldown period. Please wait before making another request."}), 429
 
     user_last_request_time[user_key] = current_time
-
-    auth = request.args.get('auth')
-
-    if not auth or auth != authToken:
-        return jsonify({"error": "Unauthorized"}), 401
 
     domain = request.args.get('domain')
     if not domain:
