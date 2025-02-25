@@ -7,6 +7,7 @@ import os
 import xml.etree.ElementTree as ET
 from waitress import serve
 from flask_cors import CORS
+import subprocess
 
 load_dotenv()
 allowedSites = os.getenv('ALLOWED_SITES').split(',')
@@ -14,10 +15,19 @@ allowedSites = os.getenv('ALLOWED_SITES').split(',')
 app = Flask(__name__)
 CORS(app, origins=allowedSites, headers=['Content-Type'])
 
-user_last_request_time = {} # Dictionary to store the last request time for each user
+das_dictionary = {} # Dictionary to store the last request time for each user for das
+whois_dictionary = {} # Dictionary to store the last request time for each user for whois
 cleanup_interval = 60  # Interval in seconds to run the cleanup
 entry_lifetime = 5  # Lifetime in seconds for each entry
 
+def whois_lookup(domain):
+    try:
+        result = subprocess.run(["whois", domain], capture_output=True, text=True, check=True)
+        if result.stdout == "":
+            return "error"
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        return("error")
 
 def xml_encode(string):
     return string.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;").replace('"', "&quot;")
@@ -58,19 +68,19 @@ def index():
 
 @app.route('/check-domain')
 def checkDomain():
-    global user_last_request_time
+    global das_dictionary
     
     user_agent = request.headers.get('User-Agent')
     user_ip = request.remote_addr
     user_key = f"{user_ip}:{user_agent}"
 
     current_time = time.time()
-    last_request_time = user_last_request_time.get(user_key, 0)
+    last_request_time = das_dictionary.get(user_key, 0)
 
     if current_time - last_request_time < 2:
         return jsonify({"status": "cooldown"}), 429
 
-    user_last_request_time[user_key] = current_time
+    das_dictionary[user_key] = current_time
 
     domain = request.args.get('domain')
     if not domain:
@@ -82,15 +92,53 @@ def checkDomain():
     else:
         return jsonify({"status": "failed"}), 500
 
+@app.route('/whois')
+def whoisSearch():
+    global whois_dictionary
+    
+    user_agent = request.headers.get('User-Agent')
+    user_ip = request.remote_addr
+    user_key = f"{user_ip}:{user_agent}"
+
+    current_time = time.time()
+    last_request_time = whois_dictionary.get(user_key, 0)
+
+    if current_time - last_request_time < 2:
+        return jsonify({"status": "cooldown"}), 429
+
+    whois_dictionary[user_key] = current_time
+
+    domain = request.args.get('domain')
+    if not domain:
+        return jsonify({"status": "invalid-query"}), 400
+
+    try:
+        whoisResult = whois_lookup(domain)
+    except:
+        return jsonify({"status": "failed"}), 500
+
+    result = []
+    for item in whoisResult.split("\n"):
+        if item != "":
+            result.append(item)
+
+    if result:
+        return jsonify({"status": "success", "whois_data": result}), 200
+    else:
+        return jsonify({"status": "failed"}), 500
 
 def cleanup_old_entries():
-    global user_last_request_time
+    global whois_dictionary
+    global das_dictionary
 
     while True:
         current_time = time.time()
-        keys_to_delete = [key for key, last_time in user_last_request_time.items() if current_time - last_time > entry_lifetime]
-        for key in keys_to_delete:
-            del user_last_request_time[key]
+        keys_to_delete1 = [key for key, last_time in whois_dictionary.items() if current_time - last_time > entry_lifetime]
+        keys_to_delete2 = [key for key, last_time in das_dictionary.items() if current_time - last_time > entry_lifetime]
+        for key in keys_to_delete1:
+            del whois_dictionary[key]
+        for key in keys_to_delete2:
+            del das_dictionary[key]
         time.sleep(cleanup_interval)
 
 if __name__ == '__main__':
