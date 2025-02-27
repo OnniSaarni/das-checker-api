@@ -7,7 +7,7 @@ import os
 import xml.etree.ElementTree as ET
 from waitress import serve
 from flask_cors import CORS
-import subprocess
+import whois
 
 load_dotenv()
 allowedSites = os.getenv('ALLOWED_SITES').split(',')
@@ -19,15 +19,6 @@ das_dictionary = {} # Dictionary to store the last request time for each user fo
 whois_dictionary = {} # Dictionary to store the last request time for each user for whois
 cleanup_interval = 60  # Interval in seconds to run the cleanup
 entry_lifetime = 5  # Lifetime in seconds for each entry
-
-def whois_lookup(domain):
-    try:
-        result = subprocess.run(["whois", domain], capture_output=True, text=True, check=True)
-        if result.stdout == "":
-            return "error"
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        return("error")
 
 def xml_encode(string):
     return string.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;").replace('"', "&quot;")
@@ -113,7 +104,7 @@ def whoisSearch():
         return jsonify({"status": "invalid-query"}), 400
 
     try:
-        result = whois_lookup(domain)
+        result = whois.whois(domain)
     except:
         return jsonify({"status": "failed"}), 500
 
