@@ -113,14 +113,9 @@ def whoisSearch():
         return jsonify({"status": "invalid-query"}), 400
 
     try:
-        whoisResult = whois_lookup(domain)
+        result = whois_lookup(domain)
     except:
         return jsonify({"status": "failed"}), 500
-
-    result = []
-    for item in whoisResult.split("\n"):
-        if item != "":
-            result.append(item)
 
     if result:
         return jsonify({"status": "success", "whois_data": result}), 200
