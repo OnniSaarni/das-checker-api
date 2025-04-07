@@ -66,30 +66,22 @@ def checkDomain():
     if not domain:
         return jsonify({"status": "invalid-query"}), 400
 
+    returnList = []
     if "," in domain:
-        returnList = []
-
         domainList = domain.split(",")
-        for dom in domainList:
-            if not "." in dom:
-                returnList.append({"domain": dom, "status": "invalid-query"})
-                continue
-            result = manual_whois(dom)
-            if result:
-                returnList.append({"domain": dom, "status": result})
-            else:
-                returnList.append({"domain": dom, "status": "failed"})
-
-        return jsonify({"domains": returnList}), 200
-
     else:
-        if not "." in domain:
-            return jsonify({"domain": domain, "status": "invalid-query"}), 400
-        result = manual_whois(domain)
+        domainList = [domain]
+    for dom in domainList:
+        if not "." in dom:
+            returnList.append({"domain": dom, "status": "invalid-query"})
+            continue
+        result = manual_whois(dom)
         if result:
-            return jsonify({"domain": domain, "status": result}), 200
+            returnList.append({"domain": dom, "status": result})
         else:
-            return jsonify({"domain": domain, "status": "failed"}), 500
+            returnList.append({"domain": dom, "status": "failed"})
+
+    return jsonify({"domains": returnList}), 200
 
 @app.route('/whois')
 def whoisSearch():
