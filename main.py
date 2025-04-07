@@ -4,7 +4,6 @@ import time
 import threading
 from dotenv import load_dotenv
 import os
-import xml.etree.ElementTree as ET
 from waitress import serve
 from flask_cors import CORS
 import whois
@@ -20,37 +19,26 @@ whois_dictionary = {} # Dictionary to store the last request time for each user 
 cleanup_interval = 60  # Interval in seconds to run the cleanup
 entry_lifetime = 5  # Lifetime in seconds for each entry
 
-def xml_encode(string):
-    return string.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;").replace('"', "&quot;")
-
-def query_domain_availability(domain):
-    query = ('<?xml version="1.0" encoding="UTF-8"?>'
-             '<iris1:request xmlns:iris1="urn:ietf:params:xml:ns:iris1">'
-             '<iris1:searchSet>'
-             f'<iris1:lookupEntity registryType="dchk1" entityClass="domain-name" entityName="{xml_encode(domain)}"/>'
-             '</iris1:searchSet>'
-             '</iris1:request>')
+def manual_whois(domain):
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            sock.sendto(query.encode(), ('das.domain.fi', 715))
-            response, _ = sock.recvfrom(4096)
-            return(parse_status_from_xml(response.decode()))
-    except Exception as e:
-        return None
+        result = whois.whois(domain)
+    except whois.parser.PywhoisError:
+        return "available"
+    except:
+        return "failed"
 
-def parse_status_from_xml(xml_string):
-    try:
-        root = ET.fromstring(xml_string)
-        status_element = root.find('.//status')
-        if status_element is not None:
-            if status_element.find('available') is not None:
+    if result:
+        try:
+            dummy = result.domain_name
+
+            if dummy is None:
                 return "available"
-            elif status_element.find('active') is not None:
+            else:
                 return "taken"
-            elif status_element.find('invalid') is not None:
-                return "invalid-query"
-        return "unknown-domain-status"
-    except ET.ParseError:
+        except:
+            return "available"
+        
+    else:
         return "failed"
 
 @app.route('/')
@@ -74,14 +62,34 @@ def checkDomain():
     das_dictionary[user_key] = current_time
 
     domain = request.args.get('domain')
+
     if not domain:
         return jsonify({"status": "invalid-query"}), 400
 
-    result = query_domain_availability(domain)
-    if result:
-        return jsonify({"status": result}), 200
+    if "," in domain:
+        returnList = []
+
+        domainList = domain.split(",")
+        for dom in domainList:
+            if not "." in dom:
+                returnList.append({"domain": dom, "status": "invalid-query"})
+                continue
+            result = manual_whois(dom)
+            if result:
+                returnList.append({"domain": dom, "status": result})
+            else:
+                returnList.append({"domain": dom, "status": "failed"})
+
+        return jsonify({"domains": returnList}), 200
+
     else:
-        return jsonify({"status": "failed"}), 500
+        if not "." in domain:
+            return jsonify({"domain": domain, "status": "invalid-query"}), 400
+        result = manual_whois(domain)
+        if result:
+            return jsonify({"domain": domain, "status": result}), 200
+        else:
+            return jsonify({"domain": domain, "status": "failed"}), 500
 
 @app.route('/whois')
 def whoisSearch():
@@ -100,11 +108,13 @@ def whoisSearch():
     whois_dictionary[user_key] = current_time
 
     domain = request.args.get('domain')
-    if not domain:
+    if not domain or not "." in domain:
         return jsonify({"status": "invalid-query"}), 400
 
     try:
         result = whois.whois(domain)
+    except whois.parser.PywhoisError:
+        return jsonify({"status": "success", "whois_data": "Domain not found"}), 200
     except:
         return jsonify({"status": "failed"}), 500
 
